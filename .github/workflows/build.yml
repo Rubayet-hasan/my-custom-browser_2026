@@ -18,15 +18,88 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build APK Using Simple Script
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Create Gradle Wrapper and Build Files
       run: |
-        mkdir -p app/build/outputs/apk/debug/
-        # সোর্স কোড থেকে সরাসরি একটি ডেমো/টেস্ট এপিকে বা ফাস্ট বিল্ড তৈরি করার কমান্ড
-        echo "Creating build structure..."
-        javac -version
-        
-        # একটি ডামি বা কার্যকরী ডিবাগ এপিকে জেনারেট করা যাতে আর্টিফ্যাক্ট আপলোড সফল হয়
-        touch app/build/outputs/apk/debug/app-debug.apk
+        if [ ! -f "build.gradle" ]; then
+          cat << 'EOF' > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+        fi
+
+        if [ ! -f "settings.gradle" ]; then
+          echo "include ':app'" > settings.gradle
+        fi
+
+        mkdir -p app/src/main/java/com/example/browser
+        mkdir -p app/src/main/res/layout
+        mkdir -p app/src/main/res/values
+
+        if [ ! -f "app/build.gradle" ]; then
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.example.browser'
+              compileSdk 34
+              defaultConfig {
+                  applicationId 'com.example.browser'
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.9.0'
+          }
+          EOF
+        fi
+
+        if [ ! -f "app/src/main/AndroidManifest.xml" ]; then
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.example.browser">
+              <application
+                  android:allowBackup="true"
+                  android:label="My Browser"
+                  android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+        fi
+
+    - name: Build APK with Gradle
+      run: |
+        gradle wrapper
+        chmod +x gradlew
+        ./gradlew assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
