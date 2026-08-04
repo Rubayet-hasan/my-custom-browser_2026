@@ -18,62 +18,72 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.2'
 
-    - name: Create Gradle Wrapper and Build Files
+    - name: Organize Code and Create Gradle Files
       run: |
-        if [ ! -f "build.gradle" ]; then
-          cat << 'EOF' > build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.0'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          EOF
-        fi
-
-        if [ ! -f "settings.gradle" ]; then
-          echo "include ':app'" > settings.gradle
-        fi
-
+        # অ্যান্ড্রয়েড প্রজেক্ট ডিরেক্টরি তৈরি
         mkdir -p app/src/main/java/com/example/browser
         mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/res/values
 
-        if [ ! -f "app/build.gradle" ]; then
-          cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
-          android {
-              namespace 'com.example.browser'
-              compileSdk 34
-              defaultConfig {
-                  applicationId 'com.example.browser'
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-          }
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.9.0'
-          }
-          EOF
-        fi
+        # রুট ফোল্ডারে থাকা আপনার ফাইলগুলো সঠিক অ্যান্ড্রয়েড স্ট্রাকচারে কপি করা
+        find . -maxdepth 2 -name "MainActivity.java" -exec cp {} app/src/main/java/com/example/browser/ \;
+        find . -maxdepth 2 -name "activity_main.xml" -exec cp {} app/src/main/res/layout/ \;
+        find . -maxdepth 2 -name "AndroidManifest.xml" -exec cp {} app/src/main/ \;
 
+        # root build.gradle
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.1.1'
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        EOF
+
+        # settings.gradle
+        echo "include ':app'" > settings.gradle
+
+        # app/build.gradle
+        cat << 'EOF' > app/build.gradle
+        plugins {
+            id 'com.android.application'
+        }
+        android {
+            namespace 'com.example.browser'
+            compileSdk 33
+            defaultConfig {
+                applicationId "com.example.browser"
+                minSdk 21
+                targetSdk 33
+                versionCode 1
+                versionName "1.0"
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+            implementation 'com.google.android.material:material:1.9.0'
+        }
+        EOF
+
+        # অ্যান্ড্রয়েড ম্যানিফেস্ট মিসিং থাকলে ডিফল্ট ম্যানিফেস্ট তৈরি
         if [ ! -f "app/src/main/AndroidManifest.xml" ]; then
           cat << 'EOF' > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -81,6 +91,7 @@ jobs:
               <application
                   android:allowBackup="true"
                   android:label="My Browser"
+                  android:supportsRtl="true"
                   android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
                   <activity
                       android:name=".MainActivity"
@@ -95,11 +106,8 @@ jobs:
           EOF
         fi
 
-    - name: Build APK with Gradle
-      run: |
-        gradle wrapper
-        chmod +x gradlew
-        ./gradlew assembleDebug
+    - name: Build Debug APK
+      run: gradle assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
