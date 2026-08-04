@@ -21,14 +21,9 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    - name: Build with Gradle
+    - name: Build APK with Gradle
       run: |
-        # যদি গ্রেডল ফাইল না থাকে তবে বেসিক প্রজেক্ট স্ট্রাকচার তৈরি করে নেবে
-        if [ ! -f "gradlew" ]; then
-          gradle wrapper
-        fi
-        chmod +x gradlew || true
-        ./gradlew assembleDebug
+        gradle assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
